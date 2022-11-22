@@ -1,0 +1,18 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "chrome",
+            "request": "attach",
+            "name": "MasterChess debugger",
+            "port": 49899,
+            "url": "https://www.chess.com/*",
+            "webRoot": "${workspaceFolder}/dist",
+            "preLaunchTask": "tsc: build - tsconfig.json",
+            "sourceMaps": true,
+            "outFiles": [
+                "${workspaceRoot}/dist/js/*.js"
+            ],
+        }
+    ]
+}
