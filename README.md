@@ -36,10 +36,11 @@ I haven't uploaded it onto the chrome store, you must install it manually by fol
 
 - Download the extension and extract it: [v1.0.0](https://github.com/thedemons/ChessMint/releases/download/v1.0.0/ChessMint.zip)
 - Go to the Extensions page by entering `chrome://extensions` in a new tab, or go to the `Manage extensions` page.
-- On the top right corner, you should see an option named `Developer mode
-`, enable it.
+- On the top right corner, you should see an option named `Developer mode`, enable it.
 - A button named `Load unpacked` will show up in the top left corner, click it.
 - Select the extension folder which you have just extracted. *The right folder should have a file called `manifest.json` in it*.
+
+*For more details, see [the official instructions](https://developer.chrome.com/docs/extensions/mv3/getstarted/development-basics/#load-unpacked)*.
 
 ## Build instruction
 This extension is written in typescript, you need to [install npm](https://docs.npmjs.com/downloading-and-installing-node-js-and-npm) first.
