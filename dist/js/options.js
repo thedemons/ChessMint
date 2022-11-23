@@ -25,6 +25,7 @@ var inputMoveAnalysis;
 var inputDepthBar;
 var inputEvalBar;
 var inputAutoMove;
+var inputUseNNUE;
 const DefaultExtensionOptions = {
     depth: 15,
     threads: 2,
@@ -32,6 +33,7 @@ const DefaultExtensionOptions = {
     move_analysis: true,
     depth_bar: true,
     evaluation_bar: true,
+    use_nnue: false,
     auto_move: false,
 };
 function RestoreOptions() {
@@ -43,6 +45,7 @@ function RestoreOptions() {
         inputMoveAnalysis.checked = options.move_analysis;
         inputDepthBar.checked = options.depth_bar;
         inputEvalBar.checked = options.evaluation_bar;
+        inputUseNNUE.checked = options.use_nnue;
         inputAutoMove.checked = options.auto_move;
         let event = new CustomEvent("input");
         event.disableUpdate = true;
@@ -58,6 +61,7 @@ function OnOptionsChange() {
         move_analysis: inputMoveAnalysis.checked,
         depth_bar: inputDepthBar.checked,
         evaluation_bar: inputEvalBar.checked,
+        use_nnue: inputUseNNUE.checked,
         auto_move: inputAutoMove.checked,
     };
     chrome.storage.sync.set(options);
@@ -82,6 +86,7 @@ function InitOptions() {
     inputMoveAnalysis = document.getElementById("option-move-analysis");
     inputDepthBar = document.getElementById("option-depth-bar");
     inputEvalBar = document.getElementById("option-evaluation-bar");
+    inputUseNNUE = document.getElementById("option-use-nnue");
     inputAutoMove = document.getElementById("option-auto-move");
     const sliderProps = {
         fill: "#2CA137",

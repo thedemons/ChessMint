@@ -71,7 +71,7 @@ class GameController {
         this.controller.on('UpdateOptions', (event) => {
             this.options = this.controller.getOptions();
             if (event.data.flipped != undefined && this.evalBar != null) {
-                if (event.data.flipped)
+                if (!this.options.isWhiteOnBottom && event.data.flipped)
                     this.evalBar.classList.add("evaluation-bar-flipped");
                 else
                     this.evalBar.classList.remove("evaluation-bar-flipped");
@@ -93,6 +93,15 @@ class GameController {
         else if (!options.depth_bar && this.depthBar != null) {
             this.depthBar.parentElement.remove();
             this.depthBar = null;
+        }
+        if (!options.show_hints) {
+            this.RemoveCurrentMarkings();
+        }
+        if (!options.move_analysis) {
+            let lastMove = this.controller.getLastMove();
+            if (lastMove) {
+                this.controller.markings.removeOne(`effect|${lastMove.to}`);
+            }
         }
     }
     CreateAnalysisTools() {
@@ -140,6 +149,8 @@ class GameController {
                 this.evalBarFill = layoutEvaluation.querySelector(".evaluation-bar-white");
                 this.evalScore = layoutEvaluation.querySelector(".evaluation-bar-score");
                 this.evalScoreAbbreviated = layoutEvaluation.querySelector(".evaluation-bar-scoreAbbreviated");
+                if (!this.options.isWhiteOnBottom && this.options.flipped)
+                    this.evalBar.classList.add("evaluation-bar-flipped");
             }
         }, 10);
     }
@@ -266,7 +277,6 @@ class StockfishEngine {
         let stockfishPath = Config.threadedEnginePaths.stockfish;
         let stockfishJs = stockfishPath.multiThreaded.loader; //singleThreaded multiThreaded
         let stockfishWASM = stockfishPath.multiThreaded.engine;
-        let stockfishNNUE = stockfishPath.multiThreaded.nnue;
         this.master = master;
         this.loaded = false;
         this.ready = false;
@@ -289,14 +299,16 @@ class StockfishEngine {
             // "Move Overhead": 10,
             // "Slow Mover": 100,
             // "nodestime": 0,
-            // // "Use NNUE": true,
-            // // "EvalFile": stockfishNNUE,
             // "UCI_Chess960": false,
             // "UCI_AnalyseMode": false,
             // "UCI_LimitStrength": false,
             // "UCI_Elo": 1350,
             // "UCI_ShowWDL": false,
         };
+        if (this.master.options.use_nnue) {
+            this.options["Use NNUE"] = true;
+            this.options["EvalFile"] = stockfishPath.multiThreaded.nnue;
+        }
         try {
             this.stockfish = new Worker(stockfishJs + "#" + stockfishWASM);
             this.stockfish.onmessage = function (e) { self.ProcessMessage(e); };
@@ -370,16 +382,26 @@ class StockfishEngine {
         this.ready = false;
         let line = (event && typeof event === "object") ? event.data : event;
         console.log("SF: " + line);
-        if (line == 'uciok') {
+        if (line === 'uciok') {
             this.loaded = true;
-            console.log("Stockfish Engine Loaded");
             this.master.onEngineLoaded();
         }
-        else if (line == 'readyok') {
+        else if (line === 'readyok') {
             this.ready = true;
             if (this.readyCallbacks.length > 0) {
                 let copy = this.readyCallbacks;
                 this.readyCallbacks = [];
+                copy.forEach(function (callback) { callback(); });
+            }
+        }
+        else if (this.isEvaluating && line === 'Load eval file success: 1') {
+            // we have sent the "go" command before stockfish loaded the eval file
+            // this.isEvaluating will be stuck at true, this fixes it.
+            this.isEvaluating = false;
+            this.isRequestedStop = false;
+            if (this.goDoneCallbacks.length > 0) {
+                let copy = this.goDoneCallbacks;
+                this.goDoneCallbacks = [];
                 copy.forEach(function (callback) { callback(); });
             }
         }
@@ -394,7 +416,6 @@ class StockfishEngine {
                 }
             }
             else if (match = line.match(/^bestmove ([a-h][1-8][a-h][1-8][qrbn]?)?/)) {
-                // console.log("Bestmove");
                 this.isEvaluating = false;
                 if (this.goDoneCallbacks.length > 0) {
                     let copy = this.goDoneCallbacks;
@@ -410,8 +431,6 @@ class StockfishEngine {
                     this.onTopMoves(this.topMoves[index], true);
                 }
                 this.isRequestedStop = false;
-            }
-            else {
             }
         }
     }
@@ -586,7 +605,7 @@ class StockfishEngine {
         });
     }
 }
-class MasterChess {
+class ChessMint {
     constructor(chessboard, options) {
         this.options = options;
         this.game = new GameController(this, chessboard);
@@ -595,12 +614,15 @@ class MasterChess {
             this.options = event.detail;
             this.game.UpdateExtensionOptions();
             this.engine.UpdateExtensionOptions();
-            window.toaster.add({
-                id: "chess.com",
-                duration: 2000,
-                icon: "circle-gearwheel",
-                content: `Settings updated!`,
-            });
+            // show a notification when the settings is updated, but only if the previous notification has gone.
+            if (window.toaster.notifications.findIndex((noti) => noti.id == "chessmint-settings-updated") == -1) {
+                window.toaster.add({
+                    id: "chessmint-settings-updated",
+                    duration: 2000,
+                    icon: "circle-gearwheel",
+                    content: `Settings updated!`,
+                });
+            }
         }, false);
     }
     onEngineLoaded() {
@@ -631,7 +653,7 @@ var ChromeRequest = (function () {
     }
     return { getData: getData };
 })();
-function InitMasterChess(chessboard) {
+function InitChessMint(chessboard) {
     fetch(Config.pathToEcoJson).then(function (response) {
         return __awaiter(this, void 0, void 0, function* () {
             let table = yield response.json();
@@ -641,7 +663,7 @@ function InitMasterChess(chessboard) {
     // get the extension option first
     ChromeRequest.getData().then(function (options) {
         try {
-            master = new MasterChess(chessboard, options);
+            master = new ChessMint(chessboard, options);
         }
         catch (e) {
             console.error(e);
@@ -653,13 +675,13 @@ function InitMasterChess(chessboard) {
 // {
 //     console.log(self);
 //     console.log("I'm thread");
-//     self.InitMasterChess();
+//     self.InitChessMint();
 // }
 // var blob = new Blob(["onmessage = function(e){" + MainWorker.toString() + "; MainWorker();};"]);
 // var blobURL = window.URL.createObjectURL(blob);
 // let mainWorker = new Worker(blobURL);
 // mainWorker.postMessage({})
-// InitMasterChess();
+// InitChessMint();
 // the site define a `chess-board` element as `class ChessBoard`
 // when it got defined, we hook its `createGame` method to initalize our code
 // all custom elements:
@@ -673,7 +695,7 @@ customElements.whenDefined("chess-board").then(function (ctor) {
     ctor.prototype._createGame = ctor.prototype.createGame;
     ctor.prototype.createGame = function (e) {
         let result = this._createGame(e);
-        InitMasterChess(this);
+        InitChessMint(this);
         return result;
     };
 });

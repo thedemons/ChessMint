@@ -6,6 +6,7 @@ const DefaultExtensionOptions2 = {
     move_analysis: true,
     depth_bar: true,
     evaluation_bar: true,
+    use_nnue: false,
     auto_move: false,
 };
 function injectScript(file) {

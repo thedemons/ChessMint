@@ -218,5 +218,6 @@ interface ExtensionOptions
     move_analysis: boolean;
     depth_bar: boolean;
     evaluation_bar: boolean;
+    use_nnue: boolean;
     auto_move: boolean;
 }

@@ -4,8 +4,8 @@
         {
             "type": "chrome",
             "request": "attach",
-            "name": "MasterChess debugger",
-            "port": 49899,
+            "name": "ChessMint debugger",
+            "port": 9992,
             "url": "https://www.chess.com/*",
             "webRoot": "${workspaceFolder}/dist",
             "preLaunchTask": "tsc: build - tsconfig.json",

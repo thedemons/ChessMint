@@ -25,6 +25,7 @@ var inputMoveAnalysis: HTMLInputElement;
 var inputDepthBar: HTMLInputElement;
 var inputEvalBar: HTMLInputElement;
 var inputAutoMove: HTMLInputElement;
+var inputUseNNUE: HTMLInputElement;
 
 const DefaultExtensionOptions: ExtensionOptions = {
     depth: 15,
@@ -33,6 +34,7 @@ const DefaultExtensionOptions: ExtensionOptions = {
     move_analysis: true,
     depth_bar: true,
     evaluation_bar: true,
+    use_nnue: false,
     auto_move: false,
 }
 
@@ -48,6 +50,7 @@ function RestoreOptions()
         inputMoveAnalysis.checked = options.move_analysis;
         inputDepthBar.checked = options.depth_bar;
         inputEvalBar.checked = options.evaluation_bar;
+        inputUseNNUE.checked = options.use_nnue;
         inputAutoMove.checked = options.auto_move;
 
         let event = new CustomEvent("input");
@@ -66,6 +69,7 @@ function OnOptionsChange()
         move_analysis: inputMoveAnalysis.checked,
         depth_bar: inputDepthBar.checked,
         evaluation_bar: inputEvalBar.checked,
+        use_nnue: inputUseNNUE.checked,
         auto_move: inputAutoMove.checked,
     }
 
@@ -97,6 +101,7 @@ function InitOptions()
     inputMoveAnalysis = document.getElementById("option-move-analysis") as HTMLInputElement;
     inputDepthBar = document.getElementById("option-depth-bar") as HTMLInputElement;
     inputEvalBar = document.getElementById("option-evaluation-bar") as HTMLInputElement;
+    inputUseNNUE = document.getElementById("option-use-nnue") as HTMLInputElement;
     inputAutoMove = document.getElementById("option-auto-move") as HTMLInputElement;
 
     const sliderProps = {
