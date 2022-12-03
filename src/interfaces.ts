@@ -21,9 +21,50 @@ interface IGameEvent
     type: TEventType
 }
 
+type TEffectType =
+    "BestMove" |
+    "Blunder" |
+    "Book" |
+    "Brilliant" |
+    "CheckmateBlack" |
+    "CheckmateWhite" |
+    "Correct" |
+    "Critical" |
+    "DrawBlack" |
+    "DrawWhite" |
+    "Excellent" |
+    "FastWin" |
+    "Forced" |
+    "FreePiece" |
+    "Gamechanger" |
+    "Good" |
+    "GreatFind" |
+    "Inaccuracy" |
+    "Incorrect" |
+    "Mate" |
+    "Miss" |
+    "MissedWin" |
+    "Mistake" |
+    "ResignBlack" |
+    "ResignWhite" |
+    "Sharp" |
+    "Takeback" |
+    "Threat" |
+    "TimeoutBlack" |
+    "TimeoutWhite" |
+    "Undo" |
+    "Winner" |
+    "WinnerWhite" |
+    "Interesting" |
+    "Warning" |
+    "Equal";
+
+type TMarkingType =
+    "arrow" | "effect" | "highlight";
+
 interface Marking
 {
-    type: string; // ["arrow", "effect", ..]
+    type: TMarkingType;
     key?: string; // "arrow|e2e4", "effect|e4"
     node?: boolean; // set to true will make it hidden when moving forward/backward in the game
     persistent?: boolean; // set to false when you want it to be removed when user interact with the board
@@ -33,7 +74,7 @@ interface Marking
         square?: string;
         color?: string;
         opacity?: number; // between 0 and 1
-        type?: string;
+        type?: TEffectType;
     }
 }
 

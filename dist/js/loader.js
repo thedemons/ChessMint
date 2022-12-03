@@ -10,12 +10,12 @@ const DefaultExtensionOptions2 = {
     auto_move: false,
 };
 function injectScript(file) {
-    let s = document.createElement("script");
-    s.src = chrome.runtime.getURL(file);
-    (document.head || document.documentElement).appendChild(s);
-    s.onload = function () {
-        s.remove();
-    };
+    let script = document.createElement("script");
+    script.src = chrome.runtime.getURL(file);
+    let doc = (document.head || document.documentElement);
+    // doc.appendChild(script);
+    doc.insertBefore(script, doc.firstElementChild);
+    script.onload = function () { script.remove(); };
 }
 chrome.runtime.onMessage.addListener(function (request, sender, sendResponse) {
     // pass the event to injected script

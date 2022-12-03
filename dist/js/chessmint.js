@@ -66,12 +66,30 @@ class GameController {
                 // at this point, the fen notation isn't updated yet, we should delay this
                 setTimeout(() => { this.ResetGame(); }, 100);
             }
+            // else
+            // {
+            //     let tournament_btn = document.querySelector(".ui_v5-button-component.ui_v5-button-primary.ui_v5-button-full");
+            //     if (tournament_btn)
+            //     {
+            //         (tournament_btn as HTMLButtonElement).click();
+            //     } else
+            //     {
+            //         let allBtns = document.querySelectorAll(".ui_v5-button-component.ui_v5-button-basic");
+            //         allBtns.forEach((btn) =>
+            //         {
+            //             if (btn.querySelector(".ui_v5-button-icon.icon-font-chess.plus") != null)
+            //             {
+            //                 (btn as HTMLButtonElement).click();
+            //             }
+            //         });
+            //     }
+            // }
         });
         // flip the evaluation board
         this.controller.on('UpdateOptions', (event) => {
             this.options = this.controller.getOptions();
             if (event.data.flipped != undefined && this.evalBar != null) {
-                if (!this.options.isWhiteOnBottom && event.data.flipped)
+                if (event.data.flipped)
                     this.evalBar.classList.add("evaluation-bar-flipped");
                 else
                     this.evalBar.classList.remove("evaluation-bar-flipped");
@@ -162,6 +180,28 @@ class GameController {
     }
     ResetGame() {
         this.UpdateEngine(true);
+        // setTimeout(function ()
+        // {
+        //     testchat("Hi im ChessMint, a chrome extension to analyze chess.com games, do u wanna beat me? Search for ChessMint on youtube!");
+        //     testchat(";)");
+        //     setTimeout(function ()
+        //     {
+        //         testchat("This game is live at: https://youtu.be/5P5O2MmgPVw");
+        //     }, 1000);
+        // }, 5000);
+        // let area_vue = document.querySelector(".resizable-chat-area-component").__vue__;
+        // let context = area_vue.$vnode.context;
+        // let temp = context.liveGame;
+        // Object.defineProperty(context, "liveGame", {
+        //     configurable: true,
+        //     get: () => { return undefined },
+        //     set: (value) => { }
+        // });
+        // context.rcnGame = true;
+        // console.log(context.liveGame);
+        // console.log(context.rcnGame);
+        // document.querySelector(".chat-room-component").__vue__.$emit("chat-input", { "text": "hello" });
+        // context.liveGame = temp;
     }
     RemoveCurrentMarkings() {
         this.currentMarkings.forEach((marking) => {
@@ -273,10 +313,8 @@ class GameController {
 }
 class StockfishEngine {
     constructor(master) {
-        let self = this;
-        let stockfishPath = Config.threadedEnginePaths.stockfish;
-        let stockfishJs = stockfishPath.multiThreaded.loader; //singleThreaded multiThreaded
-        let stockfishWASM = stockfishPath.multiThreaded.engine;
+        let stockfishJsURL;
+        let stockfishPathConfig = Config.threadedEnginePaths.stockfish;
         this.master = master;
         this.loaded = false;
         this.ready = false;
@@ -287,31 +325,42 @@ class StockfishEngine {
         this.topMoves = [];
         this.lastTopMoves = [];
         this.isInTheory = false;
-        this.depth = this.master.options.depth;
+        this.lastMoveScore = null;
         this.threads = this.master.options.threads;
-        this.options = {
-            // "Debug Log File": "",
-            "Threads": this.threads,
-            "Hash": 512,
-            "Ponder": true,
-            "MultiPV": 3,
-            // "Skill Level": 20,
-            // "Move Overhead": 10,
-            // "Slow Mover": 100,
-            // "nodestime": 0,
-            // "UCI_Chess960": false,
-            // "UCI_AnalyseMode": false,
-            // "UCI_LimitStrength": false,
-            // "UCI_Elo": 1350,
-            // "UCI_ShowWDL": false,
-        };
-        if (this.master.options.use_nnue) {
-            this.options["Use NNUE"] = true;
-            this.options["EvalFile"] = stockfishPath.multiThreaded.nnue;
-        }
+        this.depth = this.master.options.depth;
+        this.options = {};
+        //     "Debug Log File": "",
+        //     "Ponder": true,
+        //     "MultiPV": 3,
+        //     "Skill Level": 20,
+        //     "Move Overhead": 10,
+        //     "Slow Mover": 100,
+        //     "nodestime": 0,
+        //     "UCI_Chess960": false,
+        //     "UCI_AnalyseMode": false,
+        //     "UCI_LimitStrength": false,
+        //     "UCI_Elo": 1350,
+        //     "UCI_ShowWDL": false,
+        // }
+        // the multiThreaded NNUE engine needs the browser to support SharedArrayBuffer
         try {
-            this.stockfish = new Worker(stockfishJs + "#" + stockfishWASM);
-            this.stockfish.onmessage = function (e) { self.ProcessMessage(e); };
+            new SharedArrayBuffer(1024);
+            stockfishJsURL = `${stockfishPathConfig.multiThreaded.loader}#${stockfishPathConfig.multiThreaded.engine}`;
+            this.options["Threads"] = this.threads;
+            if (this.master.options.use_nnue) {
+                this.options["Use NNUE"] = true;
+                this.options["EvalFile"] = stockfishPathConfig.multiThreaded.nnue;
+            }
+        }
+        catch (e) {
+            stockfishJsURL = `${stockfishPathConfig.singleThreaded.loader}#${stockfishPathConfig.singleThreaded.engine}`;
+        }
+        this.options["Hash"] = 512;
+        this.options["MultiPV"] = 3;
+        this.options["Ponder"] = true;
+        try {
+            this.stockfish = new Worker(stockfishJsURL);
+            this.stockfish.onmessage = (e) => { this.ProcessMessage(e); };
         }
         catch (e) {
             alert("Failed to load stockfish");
@@ -381,7 +430,7 @@ class StockfishEngine {
     ProcessMessage(event) {
         this.ready = false;
         let line = (event && typeof event === "object") ? event.data : event;
-        console.log("SF: " + line);
+        // console.log("SF: " + line);
         if (line === 'uciok') {
             this.loaded = true;
             this.master.onEngineLoaded();
@@ -438,6 +487,8 @@ class StockfishEngine {
         // let it go, let it gooo
         let go = () => {
             this.lastTopMoves = isNewGame ? [] : this.topMoves;
+            this.lastMoveScore = null;
+            this.topMoves = [];
             if (isNewGame)
                 this.isInTheory = ecoTable != null;
             ;
@@ -446,7 +497,6 @@ class StockfishEngine {
                 if (ecoTable.get(shortFen) !== true)
                     this.isInTheory = false;
             }
-            this.topMoves = [];
             if (FENs != null)
                 this.send(`position fen ${FENs}`);
             this.go();
@@ -462,72 +512,98 @@ class StockfishEngine {
         });
     }
     AnalyzeLastMove() {
-        let effectType = null;
+        this.lastMoveScore = null;
         let lastMove = this.master.game.controller.getLastMove();
         if (lastMove === undefined)
             return;
         if (this.isInTheory) {
-            effectType = "Book";
+            this.lastMoveScore = "Book";
         }
-        else {
-            const index = this.lastTopMoves.findIndex(object => object.from === lastMove.from && object.to === lastMove.to);
-            // check if the last move is in the last top moves
-            if (index !== -1) {
-                let effectTopMoves = ["BestMove", "Excellent", "Good"];
-                effectType = effectTopMoves[index];
+        else if (this.lastTopMoves.length > 0) {
+            let lastBestMove = this.lastTopMoves[0];
+            // check if last move is the best move
+            if (lastBestMove.from === lastMove.from && lastBestMove.to === lastMove.to) {
+                this.lastMoveScore = "BestMove";
             }
             else {
-                let lastBestMove = this.lastTopMoves[0];
                 let bestMove = this.topMoves[0];
                 if (lastBestMove.mate != null) {
                     // if last move is losing mate, this move just escapes a mate
                     // if last move is winning mate, this move is a missed win
                     if (bestMove.mate == null) {
-                        effectType = lastBestMove.mate > 0 ? "MissedWin" : "Brilliant";
+                        this.lastMoveScore = lastBestMove.mate > 0 ? "MissedWin" : "Brilliant";
                     }
                     else {
                         // both move are mate
-                        effectType = lastBestMove.mate > 0 ? "ResignWhite" : "WinnerWhite";
+                        this.lastMoveScore = lastBestMove.mate > 0 ? "Excellent" : "ResignWhite";
                     }
                 }
                 else if (bestMove.mate != null) {
                     // brilliant if it found a mate, blunder if it moved into a mate
-                    effectType = bestMove.mate < 0 ? "Brilliant" : "Blunder";
+                    this.lastMoveScore = bestMove.mate < 0 ? "Brilliant" : "Blunder";
                 }
                 else if (bestMove.cp != null && lastBestMove.cp != null) {
                     let evalDiff = -(bestMove.cp + lastBestMove.cp);
                     if (evalDiff > 100)
-                        effectType = "Brilliant";
+                        this.lastMoveScore = "Brilliant";
                     else if (evalDiff > 0)
-                        effectType = "GreatFind";
+                        this.lastMoveScore = "GreatFind";
                     else if (evalDiff > -10)
-                        effectType = "BestMove";
+                        this.lastMoveScore = "BestMove";
                     else if (evalDiff > -25)
-                        effectType = "Excellent";
+                        this.lastMoveScore = "Excellent";
                     else if (evalDiff > -50)
-                        effectType = "Good";
+                        this.lastMoveScore = "Good";
                     else if (evalDiff > -100)
-                        effectType = "Inaccuracy";
+                        this.lastMoveScore = "Inaccuracy";
                     else if (evalDiff > -250)
-                        effectType = "Mistake";
+                        this.lastMoveScore = "Mistake";
                     else
-                        effectType = "Blunder";
+                        this.lastMoveScore = "Blunder";
                 }
                 else {
                     console.assert(false, "Error while analyzing last move");
                 }
             }
         }
-        // this.master.game.controller.markings.removeOne(`effect|${lastMove.to}`);
-        this.master.game.controller.markings.addOne({
-            data: {
-                square: lastMove.to,
-                type: effectType,
-            },
-            node: true,
-            persistent: true,
-            type: "effect",
-        });
+        // add highlight and effect
+        if (this.lastMoveScore != null) {
+            const highlightColors = {
+                "Brilliant": "#1baca6",
+                "GreatFind": "#5c8bb0",
+                "BestMove": "#9eba5a",
+                "Excellent": "#96bc4b",
+                "Good": "#96af8b",
+                "Book": "#a88865",
+                "Inaccuracy": "#f0c15c",
+                "Mistake": "#e6912c",
+                "Blunder": "#b33430",
+                "MissedWin": "#dbac16",
+            };
+            let hlColor = highlightColors[this.lastMoveScore];
+            if (hlColor != null) {
+                this.master.game.controller.markings.addOne({
+                    data: {
+                        opacity: 0.5,
+                        color: hlColor,
+                        square: lastMove.to,
+                    },
+                    node: true,
+                    persistent: true,
+                    type: "highlight",
+                });
+            }
+            // this.master.game.controller.markings.removeOne(`effect|${lastMove.to}`);
+            this.master.game.controller.markings.addOne({
+                data: {
+                    square: lastMove.to,
+                    type: this.lastMoveScore,
+                },
+                node: true,
+                persistent: true,
+                type: "effect",
+            });
+        }
     }
     onTopMoves(move = null, isBestMove = false) {
         if (move != null) {
@@ -564,6 +640,26 @@ class StockfishEngine {
             let legalMoves = this.master.game.controller.getLegalMoves();
             const index = legalMoves.findIndex(move => move.from === bestMove.from && move.to == bestMove.to);
             console.assert(index !== -1, "Illegal best move");
+            // if (this.lastMoveScore != null && this.lastMoveScore == "Blunder")
+            // {
+            //     let lastMove = this.master.game.controller.getLastMove();
+            //     if (lastMove != null)
+            //     {
+            //         testchat(`${lastMove.san} is a blunder, use ChessMint to see the best move`);
+            //         testchat(":_(");
+            //     }
+            // }
+            // if (bestMove.mate != null && bestMove.mate > 0)
+            // {
+            //     let vue = (document.querySelector(".chat-room-component") as any).__vue__;
+            //     if (bestMove.mate == 1)
+            //     {
+            //         testchat(`Remember to install the ChessMint extension ;)`);
+            //     } else
+            //     {
+            //         testchat(`Mate in ${bestMove.mate - 1} ;)`);
+            //     }
+            // }
             let moveData = legalMoves[index];
             moveData.userGenerated = true;
             if (bestMove.promotion != null)
@@ -671,17 +767,123 @@ function InitChessMint(chessboard) {
         }
     });
 }
-// function MainWorker()
-// {
-//     console.log(self);
-//     console.log("I'm thread");
-//     self.InitChessMint();
-// }
-// var blob = new Blob(["onmessage = function(e){" + MainWorker.toString() + "; MainWorker();};"]);
-// var blobURL = window.URL.createObjectURL(blob);
-// let mainWorker = new Worker(blobURL);
-// mainWorker.postMessage({})
-// InitChessMint();
+// var fakeContext: any = undefined;
+// context = {
+//     "userId": "userId",
+//     "user": {
+//         "id": 114088340,
+//         "hasEmail": true,
+//         "autoTrackContent": true,
+//         "username": "wtfwtf",
+//         "avatarUrl": "https://www.chess.com/bundles/web/images/noavatar_l.84a92436.gif",
+//         "settingsAvatarUrl": "https://www.chess.com/bundles/web/images/noavatar_l.84a92436.gif",
+//         "avatarLargeUrl": "https://www.chess.com/bundles/web/images/noavatar_l.84a92436.gif",
+//         "chessTitle": null,
+//         "country": {
+//             "code": "CA",
+//             "id": 3,
+//             "name": "Canada"
+//         },
+//         "membershipCode": "diamond",
+//         "rating": 1682,
+//         "cohort": "",
+//         "flairCode": "nothing",
+//         "membershipLevel": 50,
+//         "isActivated": true,
+//         "isRecentlyRegistered": false,
+//         "isEnabled": true,
+//         "isGuest": false,
+//         "isBasic": false,
+//         "isContentHidden": false,
+//         "isPremium": true,
+//         "isGold": true,
+//         "isDiamond": true,
+//         "isModerator": true,
+//         "isPlatinum": true,
+//         "isStaff": true,
+//         "hasAccount": true,
+//         "isNewlyRegistered": false,
+//         "optedBeta": false,
+//         "lastLoginDate": 1669963370,
+//         "timezone": "Asia/Bangkok",
+//         "archiveView": "grid",
+//         "fairPlayAgree": true,
+//         "features": {
+//             "usersettings": true,
+//             "themes": true
+//         },
+//         "isImpersonating": false,
+//         "eligibleFirstTrial": false,
+//         "registerDate": 1611120071,
+//         "safeMode": false,
+//         "uuid": "4f09cb1c-68a4-11ed-9fdd-f1cfd10e22d4",
+//         "allowBrowserNotifications": [
+//             {
+//                 "timestamp": 1611120496,
+//                 "allowed": false
+//             },
+//             {
+//                 "timestamp": 1668994929,
+//                 "allowed": false
+//             }
+//         ],
+//         "freeDiamondCampaign": {
+//             "showGiftReceivedModal": false,
+//             "showGiftExpireModal": false
+//         },
+//         "optedLeagues": true
+//     },
+//     "diagramSettings": {
+//         "board": "green",
+//         "piece": "neo"
+//     },
+//     "freeTrial": {
+//         "duration": 10000
+//     },
+//     "i18n": {
+//         "locale": "en_US",
+//         "contentLanguage": "only_user",
+//         "mobile": {
+//             "computer": "Computer",
+//             "daily_chess": "Daily Chess",
+//             "tactics": "Tactics",
+//             "lessons": "Lessons",
+//             "videos": "Videos",
+//             "articles": "Articles",
+//             "forums": "Forums",
+//             "friends": "Friends",
+//             "messages": "Messages",
+//             "stats": "Stats",
+//             "settings": "Settings",
+//             "trophies": "Trophies"
+//         }
+//     },
+//     "csrf": {
+//         "token": "dacab6.5WZv7_92bJ4C1OyllOLf3KVy-0obrDStoHXmHHbzpSA.3Bc5qZ4QG9xFkoT_3oa3q-gzmi5pw06Y2RuQbFvCw1GSMQawyBI61GThtQ",
+//         "login": "632d2c78d14d5fe1d303.025-bL6NTS-Z2pCdDrIO_CJpAeIDldtC-m086pX4lP8.kTQLVc_veUndlf_EaNhGlHEzVJt0z48YniIJg_6O45ykMRoz7uw6RM3u0Q",
+//         "logout": "28156e7b98b.6uWHRqi5O6luDM2raTUm7Hdcq_E9xxxircW2E1Q14Y0.v7fgH-HOfcxcfvTGPF12thA0xZUOll4mxfKGaRxP0_y7ls5xmOAL_C9rrg"
+//     },
+//     "amplitudeKey": "5cc41a1e56d0ee35d4c85d1d4225d2d1",
+//     "iterableKey": "f771b86cf083441f992a4bb01d3d600f",
+//     "adyen": {
+//         "environment": "live",
+//         "integrity": "sha384-O0Q35c47I1ojd1zrD78yWAs+r5gytAjBC/sxwZqgQW5z9hDbAFM49z8SViprrDwm",
+//         "clientKey": "live_7STEYX735RGTTEZMSKIVNX5C2YU2QN5B",
+//         "key": "10001|D97C83A6DB30A889AAC517489C56512C733B365B8E5E2E5CB5FD860751EC3EC14A145FE6FD2EF1A338D375DB3D9F7B988631B64D4B9C9BE3DE007D8C60649F2BAC7B0798A869892B683110B2FE53E89EBB9923A0EF7113FDEEEBC57FDB21AA8F99D3757DB7C8A8E6458D3B628B357396E77CD3C31158B203BEDAF3AC56E11A94C3BA745CAE7847B6C7D5C6B1D6E68204147A9B98EC334560F94A484FC5335F8AA4716BF13E0153B9B0E7FF75384449563F935AF0173C5F8F1CBE20B1C91593C2F7AF07A83E48F31DA8F4F5959687A682823216342C6E1B36771AC42C9BF0E03F443D07D239F25EB916BC15A908796C698D296130A9BA4A925684416F9C759143",
+//         "originKey": "pub.v2.1114841580210853.aHR0cHM6Ly93d3cuY2hlc3MuY29t.g3hcnpsxbNsbEo3XJP_laQJwLDCkoYfA1YmHG6Kns8g",
+//         "sdk": "https://checkoutshopper-live.adyen.com/checkoutshopper/sdk/3.4.0/adyen.js"
+//     },
+//     "iterableMuteApiCallsFeature": false,
+//     "paypalClientId": "AX68j9lUfn3i3vsUPLiDT-jSr3n_1h0nbZtUSRPXXy3-O6iMSX-adfP6PB0qcTbNbbqCaHm6MiDy4JzE"
+// };
+// Object.defineProperty(window, "__CHESSCOM_RTL__", {
+//     get: () => { return fakeContext; },
+//     set: (value) =>
+//     {
+//         fakeContext = value;
+//         throw new Error("Something went badly wrong!");
+//     }
+// });
 // the site define a `chess-board` element as `class ChessBoard`
 // when it got defined, we hook its `createGame` method to initalize our code
 // all custom elements:
@@ -699,4 +901,38 @@ customElements.whenDefined("chess-board").then(function (ctor) {
         return result;
     };
 });
+function PostChatMessage(content) {
+    let chat_area = document.querySelector(".resizable-chat-area-component");
+    let game_id = undefined;
+    if (chat_area.__vue__.$vnode.context.liveGame != null) {
+        game_id = chat_area.__vue__.$vnode.context.liveGame.uuid;
+    }
+    else {
+        game_id = chat_area.__vue__.liveGame.uuid;
+    }
+    let user_id = context.user.uuid;
+    let api = `https://services.chess.com/service/chat/game/${game_id}/players/messages?uid=${user_id}`;
+    let options = {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+            content: content
+        }),
+        credentials: "include"
+    };
+    return fetch(api, options);
+}
+function testchat(content) {
+    let vue = document.querySelector(".chat-room-component").__vue__;
+    vue.$emit("chat-input", { "text": content });
+    // try
+    // {
+    //     PostChatMessage(content).then(function (data) { console.log(data) });
+    // } catch (e)
+    // {
+    //     console.log(e);
+    // }
+}
 //# sourceMappingURL=chessmint.js.map

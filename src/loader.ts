@@ -12,14 +12,15 @@ const DefaultExtensionOptions2: ExtensionOptions = {
 
 function injectScript(file: string)
 {
-    let s = document.createElement("script");
+    let script = document.createElement("script");
+    script.src = chrome.runtime.getURL(file);
 
-    s.src = chrome.runtime.getURL(file);
-    (document.head || document.documentElement).appendChild(s);
-    s.onload = function ()
-    {
-        s.remove();
-    };
+    let doc = (document.head || document.documentElement);
+
+    // doc.appendChild(script);
+    doc.insertBefore(script, doc.firstElementChild);
+
+    script.onload = function () { script.remove(); };
 }
 
 chrome.runtime.onMessage.addListener(
