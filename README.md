@@ -1,3 +1,6 @@
+##  IMPORTANT: Unfortunately, due to a lack of interest, I can no longer maintain this project. Please consider using [BetterMint](https://github.com/BotSolver/BetterMint) instead.
+
+------------------
 <p align="center">
     <img width="350" src="/img/logo-h.png">
     <br><br>
